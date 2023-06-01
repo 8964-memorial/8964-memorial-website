@@ -1,0 +1,21 @@
+<header>
+  <h1>紀念六四</h1>
+</header>
+<main>
+  <div class="light-group">
+    <% @messages.each do |message| %>
+      <div class="light-box">
+        <h2><%= message.name %></h2>
+        <div class="txt">
+          <%= message.content %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</main>
+<footer>
+  <button class="btn">開始紀念</button>
+  <%= link_to '留言', say_path, class: 'btn' %>
+  <a href="https://www.facebook.com/events/611036387755528" class="banner" target="_blank"><%= image_tag '64event.jpg' %></a>
+  <p>本網站感謝以下組織、個人之貢獻：華人民主書院、Ginger、Iris、Joy Hsu、蕭新晟、雨蒼。</p>
+</footer>
