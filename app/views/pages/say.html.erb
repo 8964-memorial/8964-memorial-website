@@ -1,7 +1,7 @@
 <header class="inner">
   <div class="say-box">
     <%= form_with model: @message, url: '/say', method: :post do |form| %>
-    <fieldset>
+    <fieldset disabled>
       <div class="keyin">
         <div class="name">我是<%= form.text_field :name %></div>
         <div class="say">
