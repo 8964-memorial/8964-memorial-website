@@ -1,13 +1,15 @@
 <header class="inner">
   <div class="say-box">
     <%= form_with model: @message, url: '/say', method: :post do |form| %>
-    <div class="keyin">
-      <div class="name">我是<%= form.text_field :name %></div>
-      <div class="say">
-        <div>我想說<span>（20字以內）</span></div>
-        <%= form.text_area :content, maxlength: 20 %>
+    <fieldset>
+      <div class="keyin">
+        <div class="name">我是<%= form.text_field :name %></div>
+        <div class="say">
+          <div>我想說<span>（20字以內）</span></div>
+          <%= form.text_area :content, maxlength: 20 %>
+        </div>   
       </div>
-    </div>
+    </fieldset>
     <%= form.button "點燈", type: "submit" %>
     <% end %>
   </div>
