@@ -1,8 +1,10 @@
 Rails.application.routes.draw do
   root 'pages#index'
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  
+  # Memorial message routes
   get '/say', to: 'pages#say'
   post '/say', to: 'pages#create'
-  # Defines the root path route ("/")
-  # root "articles#index"
+  
+  # Health check for monitoring
+  get '/health', to: proc { [200, {}, ['OK']] }
 end

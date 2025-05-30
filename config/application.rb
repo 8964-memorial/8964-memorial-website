@@ -18,5 +18,8 @@ module MemorialApp
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+    
+    # Load memorial configuration
+    config.memorial = config_for(:memorial)
   end
 end

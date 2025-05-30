@@ -1,0 +1,12 @@
+default: &default
+  features:
+    commenting_enabled: true
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

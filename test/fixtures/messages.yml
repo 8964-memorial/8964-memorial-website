@@ -1,9 +1,13 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  name: MyString
-  content: MyText
+  name: "張三"
+  content: "願逝者安息"
 
 two:
-  name: MyString
-  content: MyText
+  name: "李四"
+  content: "永遠不會忘記"
+
+three:
+  name: "王五"
+  content: "記住歷史真相"
