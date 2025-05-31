@@ -88,7 +88,7 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
   def with_commenting_enabled
     original_config = Rails.application.config.memorial
-    Rails.application.config.memorial = { 'features' => { 'commenting_enabled' => true } }
+    Rails.application.config.memorial = { features: { commenting_enabled: true } }
     yield
   ensure
     Rails.application.config.memorial = original_config
@@ -96,7 +96,7 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
   def with_commenting_disabled
     original_config = Rails.application.config.memorial
-    Rails.application.config.memorial = { 'features' => { 'commenting_enabled' => false } }
+    Rails.application.config.memorial = { features: { commenting_enabled: false } }
     yield
   ensure
     Rails.application.config.memorial = original_config
