@@ -1,4 +1,7 @@
 <header class="inner">
+  <%= link_to root_path, class: 'home-btn' do %>
+    ← 回到首頁
+  <% end %>
   <div class="say-box">
     <%= form_with model: @message, url: '/say', method: :post do |form| %>
       <fieldset <%= 'disabled' unless commenting_enabled? %>>
