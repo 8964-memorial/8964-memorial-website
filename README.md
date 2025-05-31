@@ -217,6 +217,44 @@ CMD ["bundle", "exec", "unicorn", "-c", "unicorn.conf.rb"]
 - 安全標頭設定
 - 輸入驗證
 
+## 管理工具
+
+### Rake Tasks
+
+本專案提供以下管理工具：
+
+#### 匯出留言 (`memorial:export`)
+
+將所有留言匯出為 JSON 或 CSV 格式：
+
+```bash
+# 匯出為 JSON 格式（預設）
+rails memorial:export
+
+# 匯出為 CSV 格式
+rails memorial:export[csv]
+```
+
+輸出檔案會儲存在 `backup/` 目錄，檔名包含時間戳記。
+
+#### 清空留言 (`memorial:clear`)
+
+安全地清空所有留言，包含確認步驟和自動備份：
+
+```bash
+rails memorial:clear
+```
+
+執行流程：
+1. 顯示留言數量警告
+2. 詢問是否建立自動備份（預設：是）
+3. 最終確認刪除操作
+4. 清空留言並重置資料庫 ID 計數器
+
+**重要提醒**：刪除操作無法復原，建議先建立備份。
+
+詳細說明請參考 [TASK_README.md](TASK_README.md)。
+
 ## 測試
 
 ```bash
@@ -226,6 +264,9 @@ rails test
 # 執行特定測試
 rails test test/models/message_test.rb
 rails test test/controllers/pages_controller_test.rb
+
+# 執行 rake task 測試
+rails test test/lib/tasks/
 
 # 系統測試（需要Chrome/Firefox）
 rails test:system
