@@ -1,17 +1,17 @@
 <header>
-  <h1>紀念六四</h1>
+  <h1>紀念六四 - 1989年六四天安門事件追思</h1>
 </header>
 <main>
-  <div class="light-group">
+  <section class="light-group" aria-label="紀念訊息區">
     <% @messages.each do |message| %>
-      <div class="light-box">
-        <h2><%= message.name %></h2>
-        <div class="txt">
+      <article class="light-box" itemscope itemtype="https://schema.org/Comment">
+        <h2 itemprop="author"><%= message.name %></h2>
+        <div class="txt" itemprop="text">
           <%= message.content %>
         </div>
-      </div>
+      </article>
     <% end %>
-  </div>
+  </section>
 </main>
 <footer>
   <button class="btn">開始紀念</button>
