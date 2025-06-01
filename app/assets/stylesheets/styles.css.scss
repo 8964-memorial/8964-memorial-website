@@ -176,7 +176,7 @@ footer p{
 	text-indent: -500px;
 	position: fixed;
 	right:10px;
-	bottom: 288px;
+	bottom: 126px;
 	border:none;
 	border-radius: 10px;
 	z-index: 9999;
@@ -192,6 +192,9 @@ footer p{
 }
 .banner img{
 	width: 100%;
+	height: auto;
+	max-height: 115px;
+	object-fit: contain;
 }
 
 .say-box{
@@ -335,5 +338,6 @@ footer p{
     .btn{
 	width: 109px;
 	height: 37px;
+	bottom: 126px;
 }
 }
