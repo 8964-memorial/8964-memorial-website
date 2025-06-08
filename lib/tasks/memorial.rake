@@ -46,8 +46,10 @@ namespace :memorial do
     begin
       # Create static output directory
       static_dir = File.join(Rails.root, 'static_output')
+      static_zip_dir = File.join(Rails.root, 'static_zip')
       FileUtils.rm_rf(static_dir) if Dir.exist?(static_dir)
       FileUtils.mkdir_p(static_dir)
+      FileUtils.mkdir_p(static_zip_dir) if not Dir.exist?(static_zip_dir)
       
       # Generate static HTML
       generate_static_html(static_dir)
@@ -55,7 +57,15 @@ namespace :memorial do
       # Copy assets
       copy_assets(static_dir)
       
+      # Create zip file with date suffix
+      timestamp = Time.current.strftime('%Y%m%d_%H%M%S')
+      zip_filename = "memorial_static_#{timestamp}.zip"
+      zip_filepath = File.join(static_zip_dir, zip_filename)
+      
+      create_zip_file(static_dir, zip_filepath)
+      
       puts "✅ Static site generated successfully in: #{static_dir}"
+      puts "📦 Static site compressed to: #{zip_filepath}"
       puts "📁 You can now host the contents of this directory on any static hosting service."
       puts "🗄️  Using production database: #{ActiveRecord::Base.connection_db_config.database}"
     ensure
@@ -151,6 +161,32 @@ namespace :memorial do
   end
 
   private
+
+  def create_zip_file(source_dir, zip_filepath)
+    require 'zip'
+    
+    puts "📦 Creating zip file: #{File.basename(zip_filepath)}"
+    
+    Zip::File.open(zip_filepath, Zip::File::CREATE) do |zipfile|
+      Dir.glob(File.join(source_dir, '**', '*')).each do |file|
+        next if File.directory?(file)
+        
+        # Get relative path from source directory
+        relative_path = file.sub("#{source_dir}/", '')
+        zipfile.add(relative_path, file)
+      end
+    end
+    
+    file_size = File.size(zip_filepath)
+    file_size_mb = (file_size / 1024.0 / 1024.0).round(2)
+    puts "✅ Zip file created successfully (#{file_size_mb} MB)"
+  rescue LoadError
+    puts "❌ Error: 'zip' gem not found. Please add 'gem \"rubyzip\"' to your Gemfile and run 'bundle install'"
+    puts "   Skipping zip file creation."
+  rescue => e
+    puts "❌ Error creating zip file: #{e.message}"
+    puts "   Static files are still available in: #{source_dir}"
+  end
 
   def generate_static_html(static_dir)
     # Get all messages ordered by name for consistent backend ordering

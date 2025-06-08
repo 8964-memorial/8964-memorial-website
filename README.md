@@ -237,6 +237,26 @@ rails memorial:export[csv]
 
 輸出檔案會儲存在 `backup/` 目錄，檔名包含時間戳記。
 
+#### 生成靜態網站 (`memorial:static`)
+
+將動態網站打包成靜態 HTML 檔案，並自動壓縮為 ZIP 檔案：
+
+```bash
+rails memorial:static
+```
+
+功能說明：
+1. 生成包含所有留言的靜態 HTML 頁面
+2. 複製所有必要的靜態資源（圖片、CSS等）
+3. 自動打包成帶日期後綴的 ZIP 檔案（如：`memorial_static_20250608_143522.zip`）
+4. 靜態檔案可直接部署到任何靜態網站託管服務
+
+輸出：
+- 靜態檔案目錄：`static_output/`
+- 壓縮檔案：專案根目錄的 `memorial_static_[時間戳].zip`
+
+**注意**：需要先安裝 `rubyzip` gem 以支援 ZIP 壓縮功能。
+
 #### 清空留言 (`memorial:clear`)
 
 安全地清空所有留言，包含確認步驟和自動備份：

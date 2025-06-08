@@ -45,6 +45,9 @@ gem "bootsnap", require: false
 # Use Sass to process CSS
 gem "sassc-rails"
 
+# Zip file creation for static export
+gem "rubyzip"
+
 group :production do
   gem 'unicorn'
 end
