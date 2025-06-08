@@ -27,6 +27,49 @@ namespace :memorial do
     end
   end
 
+  desc "Generate static HTML version with all assets"
+  task :static => :environment do
+    puts "🌟 Generating static HTML version of memorial site..."
+    
+    # Switch to production environment to use production database
+    original_env = Rails.env
+    # Rails.env = 'production'
+    
+    # Reload ActiveRecord to use production database configuration
+    if ActiveRecord::Base.respond_to?(:clear_all_connections!)
+      ActiveRecord::Base.clear_all_connections!
+    else
+      ActiveRecord::Base.connection_handler.clear_all_connections!
+    end
+    ActiveRecord::Base.establish_connection
+    
+    begin
+      # Create static output directory
+      static_dir = File.join(Rails.root, 'static_output')
+      FileUtils.rm_rf(static_dir) if Dir.exist?(static_dir)
+      FileUtils.mkdir_p(static_dir)
+      
+      # Generate static HTML
+      generate_static_html(static_dir)
+      
+      # Copy assets
+      copy_assets(static_dir)
+      
+      puts "✅ Static site generated successfully in: #{static_dir}"
+      puts "📁 You can now host the contents of this directory on any static hosting service."
+      puts "🗄️  Using production database: #{ActiveRecord::Base.connection_db_config.database}"
+    ensure
+      # Restore original environment
+      Rails.env = original_env
+      if ActiveRecord::Base.respond_to?(:clear_all_connections!)
+        ActiveRecord::Base.clear_all_connections!
+      else
+        ActiveRecord::Base.connection_handler.clear_all_connections!
+      end
+      ActiveRecord::Base.establish_connection
+    end
+  end
+
   desc "Clear all messages with confirmation"
   task :clear => :environment do
     message_count = Message.count
@@ -108,6 +151,190 @@ namespace :memorial do
   end
 
   private
+
+  def generate_static_html(static_dir)
+    # Get all messages ordered by name for consistent backend ordering
+    # but will be shuffled by JavaScript on frontend
+    messages = Message.order(:name)
+    
+    # Create the static HTML content
+    html_content = generate_html_template(messages)
+    
+    # Write index.html
+    File.write(File.join(static_dir, 'index.html'), html_content)
+    puts "✅ Generated index.html with #{messages.count} messages"
+  end
+
+  def copy_assets(static_dir)
+    # Create assets directories
+    assets_dir = File.join(static_dir, 'assets')
+    FileUtils.mkdir_p(File.join(assets_dir, 'images'))
+    FileUtils.mkdir_p(File.join(assets_dir, 'stylesheets'))
+    
+    # Copy images
+    images_source = File.join(Rails.root, 'app', 'assets', 'images')
+    if Dir.exist?(images_source)
+      FileUtils.cp_r(Dir.glob(File.join(images_source, '*')), File.join(assets_dir, 'images'))
+      puts "✅ Copied image assets"
+    end
+    
+    # Copy public assets
+    public_source = File.join(Rails.root, 'public')
+    if Dir.exist?(public_source)
+      Dir.glob(File.join(public_source, '*')).each do |item|
+        next if File.basename(item) == 'assets' # Skip compiled assets for now
+        if File.directory?(item)
+          FileUtils.cp_r(item, static_dir)
+        else
+          FileUtils.cp(item, static_dir)
+        end
+      end
+      puts "✅ Copied public assets"
+    end
+    
+    # Generate compiled CSS content
+    generate_compiled_css(assets_dir)
+  end
+
+  def generate_compiled_css(assets_dir)
+    # Read the main SCSS file and basic CSS
+    scss_content = ""
+    
+    scss_file = File.join(Rails.root, 'app', 'assets', 'stylesheets', 'styles.css.scss')
+    if File.exist?(scss_file)
+      scss_content = File.read(scss_file)
+      
+      # Convert Rails image-url() helpers to relative paths for static site
+      scss_content = scss_content.gsub(/image-url\(["']([^"']+)["']\)/) do |match|
+        image_name = $1
+        "url(/assets/images/#{image_name})"
+      end
+    end
+    
+    # Write as CSS (basic conversion - for full SCSS compilation would need Sass gem)
+    css_file = File.join(assets_dir, 'stylesheets', 'application.css')
+    File.write(css_file, scss_content)
+    puts "✅ Generated CSS file with converted image paths"
+  end
+
+  def generate_html_template(messages)
+    # Generate message data as JSON for JavaScript shuffling
+    messages_json = messages.map do |message|
+      {
+        name: message.name,
+        content: message.content
+      }
+    end.to_json
+    
+    <<~HTML
+      <!DOCTYPE html>
+      <html lang="zh-Hant-TW">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="stylesheet" href="assets/stylesheets/application.css" media="all">
+          <title>紀念六四：線上悼念 - 1989年六四天安門事件紀念網站</title>
+          <link rel="icon" type="image/png" href="assets/images/favicon.png">
+          <meta name="description" content="1989年六四天安門事件線上紀念網站，歡迎大家在此點起一支蠟燭，留下追思訊息，共同悼念六四事件。">
+          <meta name="keywords" content="六四,天安門,1989,紀念,悼念,民主,人權,追思,八九民運">
+          <meta name="author" content="雨蒼">
+          <meta name="robots" content="index, follow">
+          
+          <!-- Open Graph / Facebook -->
+          <meta property="og:title" content="紀念六四：線上悼念 - 1989年六四天安門事件紀念網站">
+          <meta property="og:type" content="website">
+          <meta property="og:url" content="https://vigil.8964.memorial">
+          <meta property="og:image" content="https://vigil.8964.memorial/static/og-image.png">
+          <meta property="og:description" content="1989年六四天安門事件線上紀念網站，歡迎大家在此點起一支蠟燭，留下追思訊息，共同悼念六四事件。">
+          <meta property="og:site_name" content="紀念六四">
+          
+          <!-- Twitter Card -->
+          <meta name="twitter:card" content="summary_large_image">
+          <meta name="twitter:title" content="紀念六四：線上悼念 - 1989年六四天安門事件紀念網站">
+          <meta name="twitter:description" content="1989年六四天安門事件線上紀念網站，歡迎大家在此點起一支蠟燭，留下追思訊息，共同悼念六四事件。">
+          <meta name="twitter:image" content="https://vigil.8964.memorial/static/og-image.png">
+          
+          <!-- Canonical URL -->
+          <link rel="canonical" href="https://vigil.8964.memorial">
+          
+          <!-- Structured Data -->
+          <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "紀念六四：線上悼念",
+            "description": "1989年六四天安門事件線上紀念網站，歡迎大家在此點起一支蠟燭，留下追思訊息，共同悼念六四事件。",
+            "url": "https://vigil.8964.memorial",
+            "publisher": {
+              "@type": "Person",
+              "name": "雨蒼"
+            }
+          }
+          </script>
+        </head>
+        <body>
+          <div class="all-wrap">
+            <header>
+              <h1>紀念六四 - 1989年六四天安門事件追思</h1>
+            </header>
+            <main>
+              <section class="light-group" aria-label="紀念訊息區">
+                <div id="messages-container">
+                  <!-- Messages will be populated by JavaScript -->
+                </div>
+              </section>
+            </main>
+            <footer>
+              <a href="https://www.facebook.com/events/1089019929948553/" class="banner" target="_blank">
+                <img src="assets/images/64event.jpg" alt="六四事件紀念活動">
+              </a>
+              <p>本網站感謝以下組織、個人之貢獻：華人民主書院、Ginger、Iris、Joy Hsu、蕭新晟、雨蒼。</p>
+            </footer>
+          </div>
+
+          <script>
+            // Messages data (ordered by name in backend, will be shuffled here)
+            const messages = #{messages_json};
+            
+            // Shuffle function
+            function shuffleArray(array) {
+              const shuffled = [...array];
+              for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+              }
+              return shuffled;
+            }
+            
+            // Render messages
+            function renderMessages() {
+              const container = document.getElementById('messages-container');
+              const shuffledMessages = shuffleArray(messages);
+              
+              container.innerHTML = shuffledMessages.map(message => `
+                <article class="light-box" itemscope itemtype="https://schema.org/Comment">
+                  <h2 itemprop="author">${escapeHtml(message.name)}</h2>
+                  <div class="txt" itemprop="text">
+                    ${escapeHtml(message.content)}
+                  </div>
+                </article>
+              `).join('');
+            }
+            
+            // HTML escape function
+            function escapeHtml(text) {
+              const div = document.createElement('div');
+              div.textContent = text;
+              return div.innerHTML;
+            }
+            
+            // Initialize on page load with random shuffle
+            document.addEventListener('DOMContentLoaded', renderMessages);
+          </script>
+        </body>
+      </html>
+    HTML
+  end
 
   def export_to_json(messages, timestamp, backup_dir = nil)
     backup_dir ||= Rails.root

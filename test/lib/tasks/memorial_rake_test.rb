@@ -79,6 +79,56 @@ class MemorialRakeTest < ActiveSupport::TestCase
     assert_includes output, "No messages found to export."
   end
 
+  test "static task generates HTML with correct image paths" do
+    output = capture_io do
+      Rake::Task['memorial:static'].reenable
+      Rake::Task['memorial:static'].invoke
+    end
+    
+    static_dir = File.join(Rails.root, 'static_output')
+    index_file = File.join(static_dir, 'index.html')
+    
+    assert File.exist?(index_file)
+    
+    html_content = File.read(index_file)
+    # Check image paths are relative
+    assert_includes html_content, 'src="assets/images/64event.jpg"'
+    assert_includes html_content, 'href="assets/images/favicon.png"'
+    # Check CSS path is relative
+    assert_includes html_content, 'href="assets/stylesheets/application.css"'
+    # Check test messages are included
+    assert_includes html_content, '測試者1'
+    assert_includes html_content, '測試留言1'
+  end
+
+  test "static task creates required directory structure" do
+    output = capture_io do
+      Rake::Task['memorial:static'].reenable  
+      Rake::Task['memorial:static'].invoke
+    end
+    
+    static_dir = File.join(Rails.root, 'static_output')
+    
+    # Check main directories exist
+    assert Dir.exist?(static_dir)
+    assert Dir.exist?(File.join(static_dir, 'assets'))
+    assert Dir.exist?(File.join(static_dir, 'assets', 'images'))
+    assert Dir.exist?(File.join(static_dir, 'assets', 'stylesheets'))
+    
+    # Check key files exist
+    assert File.exist?(File.join(static_dir, 'index.html'))
+    assert File.exist?(File.join(static_dir, 'assets', 'stylesheets', 'application.css'))
+  end
+
+  test "static task includes production database message" do
+    output = capture_io do
+      Rake::Task['memorial:static'].reenable
+      Rake::Task['memorial:static'].invoke
+    end
+    
+    assert_includes output.join, 'Using production database:'
+  end
+
   private
 
   def cleanup_test_files
@@ -90,5 +140,9 @@ class MemorialRakeTest < ActiveSupport::TestCase
     if Dir.exist?(backup_dir)
       Dir.glob(File.join(backup_dir, 'memorial_messages_*')).each { |file| File.delete(file) }
     end
+    
+    # Clean up static output directory
+    static_dir = File.join(Rails.root, 'static_output')
+    FileUtils.rm_rf(static_dir) if Dir.exist?(static_dir)
   end
 end
