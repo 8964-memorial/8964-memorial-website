@@ -79,7 +79,7 @@ BUNDLE_BUILD__MYSQL2: "--with-cflags=-std=gnu17"
 - `app/models/message.rb` — validations + sanitize
 - `app/views/pages/index.html.erb` — memorial display
 - `app/views/pages/say.html.erb` — submit form (contains the honeypot div)
-- `app/helpers/application_helper.rb` — `commenting_enabled?` (also duplicated as a private method in `PagesController`; pre-existing DRY violation, untouched)
+- `app/helpers/application_helper.rb` — `commenting_enabled?` (single source of truth; the controller calls it via `helpers.commenting_enabled?`)
 - `config/routes.rb` — `root`, `/say` (GET/POST), `/health`
 - `config/initializers/rack_attack.rb` — throttling config
 - `config/initializers/content_security_policy.rb` — CSP + nonce

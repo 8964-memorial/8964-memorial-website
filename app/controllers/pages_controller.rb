@@ -32,14 +32,8 @@ class PagesController < ApplicationController
   end
 
   def check_commenting_enabled
-    unless commenting_enabled?
+    unless helpers.commenting_enabled?
       redirect_to root_path, alert: '留言功能目前已關閉'
     end
-  end
-
-  def commenting_enabled?
-    # Check environment variable first, then config
-    return ENV['MEMORIAL_COMMENTING_ENABLED'] == 'true' if ENV['MEMORIAL_COMMENTING_ENABLED'].present?
-    Rails.application.config.memorial[:features][:commenting_enabled]
   end
 end
