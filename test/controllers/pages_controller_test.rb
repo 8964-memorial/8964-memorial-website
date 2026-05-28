@@ -92,6 +92,18 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should silently drop submissions that fill the honeypot field" do
+    with_commenting_enabled do
+      assert_no_difference('Message.count') do
+        post say_path, params: {
+          message: { name: "bot", content: "spam" },
+          email_confirmation: "bot@example.com"
+        }
+      end
+      assert_redirected_to root_path
+    end
+  end
+
   private
 
   def with_commenting_enabled

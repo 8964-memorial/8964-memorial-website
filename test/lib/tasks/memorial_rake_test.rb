@@ -111,6 +111,25 @@ class MemorialRakeTest < ActiveSupport::TestCase
     assert_includes html_content, '測試留言1'
   end
 
+  test "static task unicode-escapes <,>,& in inline messages JSON" do
+    # Loofah's default safe-list allows <b>, so this content survives sanitize
+    # and ends up containing a real "<" character. The static export must
+    # escape it so a crafted </script> in content can't break out.
+    Message.create!(name: "evil", content: "<b>x</b>")
+
+    capture_io do
+      Rake::Task['memorial:static'].reenable
+      Rake::Task['memorial:static'].invoke
+    end
+
+    html = File.read(File.join(Rails.root, 'static_output', 'index.html'))
+    # Literal 6-char escape sequences (single-quoted so Ruby doesn't decode \u).
+    assert_includes html, '<', 'expected < to be unicode-escaped in messages JSON'
+    assert_includes html, '>', 'expected > to be unicode-escaped in messages JSON'
+    assert_no_match(/const messages\s*=\s*\[[^\]]*<b>/m, html,
+                    'raw < in messages JSON would break out of the inline <script>')
+  end
+
   test "static task creates required directory structure" do
     output = capture_io do
       Rake::Task['memorial:static'].reenable  
