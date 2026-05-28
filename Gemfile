@@ -4,7 +4,7 @@ git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 ruby "3.2.8"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 7.2.2"
+gem "rails", "~> 7.2.3", ">= 7.2.3.1"
 
 # The original asset pipeline for Rails [https://github.com/rails/sprockets-rails]
 gem "sprockets-rails"
@@ -48,6 +48,9 @@ gem "sassc-rails"
 # Zip file creation for static export
 gem "rubyzip"
 
+# Rate limiting / throttling to mitigate comment flooding [https://github.com/rack/rack-attack]
+gem "rack-attack"
+
 group :production do
   gem 'unicorn'
 end
@@ -60,6 +63,8 @@ group :development, :test do
   gem "debug", platforms: %i[ mri mingw x64_mingw ]
   # Security vulnerability scanner
   gem "bundler-audit", "~> 0.9.2"
+  # Static analysis security scanner
+  gem "brakeman", require: false
 end
 
 group :development do

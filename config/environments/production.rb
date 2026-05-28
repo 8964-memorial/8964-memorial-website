@@ -28,7 +28,10 @@ Rails.application.configure do
   # config.assets.css_compressor = :sass
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.
-  config.assets.compile = true
+  # Disabled in production: assets are precompiled at deploy time (rails
+  # assets:precompile). Dynamic compilation is a performance/DoS risk and hides
+  # missing-asset bugs. Ensure precompile runs before deploying.
+  config.assets.compile = false
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -45,11 +48,16 @@ Rails.application.configure do
   # config.action_cable.url = "wss://example.com/cable"
   # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
 
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  # config.force_ssl = true  # Disabled as frontend handles SSL termination
-  
-  # Configure for Cloudflare SSL termination
-  config.force_ssl = false
+  # SSL is terminated at Cloudflare (currently Flexible mode), so requests reach
+  # this origin over plain HTTP. assume_ssl tells Rails to treat them as already
+  # encrypted (true for the browser<->Cloudflare hop), which lets force_ssl mark
+  # cookies Secure and emit HSTS *without* causing a redirect loop on the HTTP
+  # traffic Cloudflare forwards.
+  #
+  # NOTE: Flexible SSL leaves the Cloudflare->origin hop in plaintext. Strongly
+  # recommend switching Cloudflare to Full (strict) to encrypt that hop too.
+  config.assume_ssl = true
+  config.force_ssl = true
   config.action_controller.forgery_protection_origin_check = false
 
   # Include generic and useful information about system operation, but avoid logging too much

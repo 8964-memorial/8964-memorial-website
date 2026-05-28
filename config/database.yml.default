@@ -51,5 +51,8 @@ test:
 production:
   <<: *default
   database: memorial_production
-  username: memorial
-  password: 
+  # Provide credentials via environment variables in production. Never commit a
+  # real password. Set a strong MEMORIAL_DB_PASSWORD (and optionally
+  # MEMORIAL_DB_USERNAME) on the server / in the deploy environment.
+  username: <%= ENV.fetch("MEMORIAL_DB_USERNAME", "memorial") %>
+  password: <%= ENV.fetch("MEMORIAL_DB_PASSWORD") if Rails.env.production? %>

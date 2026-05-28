@@ -10,7 +10,9 @@ class ApplicationController < ActionController::Base
   def set_security_headers
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # The legacy XSS auditor is deprecated and can introduce its own issues;
+    # modern browsers rely on CSP instead, so explicitly disable it.
+    response.headers['X-XSS-Protection'] = '0'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
   end
 end

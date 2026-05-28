@@ -10,6 +10,12 @@ class PagesController < ApplicationController
   end
 
   def create
+    # Honeypot: real users never see/fill this field; if it's present, a bot did.
+    # Silently pretend success so the bot gets no signal, but persist nothing.
+    if params[:email_confirmation].present?
+      redirect_to root_path and return
+    end
+
     @message = Message.new(message_params)
 
     if @message.save

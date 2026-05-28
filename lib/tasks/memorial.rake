@@ -261,6 +261,12 @@ namespace :memorial do
         content: message.content
       }
     end.to_json
+
+    # Escape <, >, & to their JSON unicode escapes so message content can never
+    # break out of the inline <script> block in the generated static HTML
+    # (defense in depth on top of the Message model's input sanitization).
+    js_safe = { "<" => "\\u003c", ">" => "\\u003e", "&" => "\\u0026" }
+    messages_json = messages_json.gsub(/[<>&]/, js_safe)
     
     <<~HTML
       <!DOCTYPE html>
