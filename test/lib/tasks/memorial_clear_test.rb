@@ -2,8 +2,17 @@ require 'test_helper'
 require 'rake'
 
 class MemorialClearTest < ActiveSupport::TestCase
+  # The memorial:clear task runs `ALTER TABLE ... AUTO_INCREMENT`, and MySQL DDL
+  # triggers an implicit COMMIT that breaks transactional-test isolation (a later
+  # test then sees an empty table and the task's `exit 0` aborts the whole run).
+  # Run this class without a wrapping transaction; setup/teardown manage rows.
+  self.use_transactional_tests = false
+
   def setup
-    Rails.application.load_tasks
+    # Load tasks only once per process — calling load_tasks repeatedly appends
+    # another action block to every task, so the task body would run N times on
+    # the Nth invoke (and this task's count==0 `exit` would kill the run).
+    Rails.application.load_tasks unless Rake::Task.task_defined?('memorial:clear')
     Message.delete_all
     
     @test_messages = [

@@ -2,8 +2,18 @@ require 'test_helper'
 require 'rake'
 
 class MemorialRakeTest < ActiveSupport::TestCase
+  # The memorial:static task calls clear_all_connections! + establish_connection
+  # to read committed data on a fresh connection (its real job is dumping the
+  # production DB). Transactional fixtures are invisible across that reconnect,
+  # so run this class without a wrapping transaction and manage rows explicitly
+  # in setup/teardown instead.
+  self.use_transactional_tests = false
+
   def setup
-    Rails.application.load_tasks
+    # Load tasks only once per process — calling load_tasks repeatedly appends
+    # another action block to every task, so the task body would run N times on
+    # the Nth invoke (and the clear task's count==0 `exit` would kill the run).
+    Rails.application.load_tasks unless Rake::Task.task_defined?('memorial:export')
     Message.delete_all
     
     @test_messages = [

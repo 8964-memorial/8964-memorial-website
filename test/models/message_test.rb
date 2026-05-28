@@ -17,13 +17,13 @@ class MessageTest < ActiveSupport::TestCase
   end
 
   test "should be invalid with content longer than 20 characters" do
-    message = Message.new(name: "測試用戶", content: "這是一個很長的測試內容超過二十個字")
+    message = Message.new(name: "測試用戶", content: "這是一個超過二十個字的測試內容用來驗證長度限制功能")
     assert_not message.valid?
     assert_includes message.errors[:content], "is too long (maximum is 20 characters)"
   end
 
   test "should be valid with content exactly 20 characters" do
-    message = Message.new(name: "測試用戶", content: "剛好二十個字的測試內容二十個字")
+    message = Message.new(name: "測試用戶", content: "剛好二十個字元的測試留言內容正好二十個字")
     assert message.valid?
   end
 end
