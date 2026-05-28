@@ -12,18 +12,19 @@
 
 ## 技術規格
 
-- **Framework**: Ruby on Rails 7.2.2
-- **Ruby Version**: 3.2.8
+- **Framework**: Ruby on Rails 7.2.3.1（7.2 系列維持中，未升 8）
+- **Ruby Version**: 3.4.4
 - **Database**: MySQL
 - **Web Server**: Unicorn (生產環境)
 - **CSS**: SCSS with Sass
 - **JavaScript**: Stimulus + Turbo (Hotwire)
+- **防灌水**: rack-attack 節流 + honeypot 隱藏欄位
 
 ## 安裝與開發
 
 ### 系統需求
 
-- Ruby 3.2.8
+- Ruby 3.4.4
 - MySQL 5.5.8+
 - Node.js (用於asset pipeline)
 
@@ -60,9 +61,10 @@
 
 ### 開發工具
 
-- **測試**: `rails test`
-- **安全掃描**: `bundle exec bundler-audit check`
-- **Console**: `rails console`
+- **測試**: `bin/rails test`
+- **相依套件 CVE 掃描**: `bundle exec bundler-audit check --update`
+- **應用程式靜態安全掃描**: `bundle exec brakeman`
+- **Console**: `bin/rails console`
 
 ## 部署
 
@@ -76,7 +78,7 @@
 cp config/database.yml.default config/database.yml
 ```
 
-編輯 `config/database.yml` 生產環境設定：
+編輯 `config/database.yml` 生產環境設定（`database.yml` 本身已在 `.gitignore` 中、不會進版控）：
 
 ```yaml
 production:
@@ -84,34 +86,31 @@ production:
   encoding: utf8mb4
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   database: memorial_production
-  username: <%= ENV.fetch("DB_USERNAME") { "memorial" } %>
-  password: <%= ENV.fetch("DB_PASSWORD") { "" } %>
-  host: <%= ENV.fetch("DB_HOST") { "localhost" } %>
-  port: <%= ENV.fetch("DB_PORT") { 3306 } %>
+  username: <%= ENV.fetch("MEMORIAL_DB_USERNAME", "memorial") %>
+  password: <%= ENV.fetch("MEMORIAL_DB_PASSWORD") if Rails.env.production? %>
+  host: localhost
 ```
+
+`MEMORIAL_DB_PASSWORD` 在 production 才會被讀取（缺值會 fail fast），dev/test 不受影響。
 
 #### 環境變數
 
-在生產環境中，可設定以下環境變數：
+在生產環境中，必要 / 可選的環境變數：
 
 ```bash
-# 資料庫連線
-DB_USERNAME=your_db_username
-DB_PASSWORD=your_db_password
-DB_HOST=localhost
-DB_PORT=3306
+# 資料庫（必要）
+MEMORIAL_DB_PASSWORD=高強度密碼
+MEMORIAL_DB_USERNAME=memorial   # 可選，預設 memorial
 
-# Rails設定
+# Rails 必要
 RAILS_ENV=production
-SECRET_KEY_BASE=your_secret_key_base
+SECRET_KEY_BASE=...              # 或透過 config/credentials.yml.enc + RAILS_MASTER_KEY
 
-# 留言功能控制（可選）
+# 留言功能開關（可選；ENV 優先於 config/memorial.yml）
 MEMORIAL_COMMENTING_ENABLED=true  # true/false
 
-# 靜態檔案服務（如使用Rails服務靜態檔案）
+# 靜態檔案服務（容器/反向代理情境）
 RAILS_SERVE_STATIC_FILES=true
-
-# 日誌輸出到STDOUT（容器化部署）
 RAILS_LOG_TO_STDOUT=true
 ```
 
@@ -125,20 +124,21 @@ production:
     commenting_enabled: true  # 設為false關閉留言功能
 ```
 
-### Docker部署
+### Docker 部署
 
-創建 `Dockerfile`:
+範例 `Dockerfile`：
 
 ```dockerfile
-FROM ruby:3.2.8
+FROM ruby:3.4.4
 
 WORKDIR /app
 
-COPY Gemfile Gemfile.lock ./
-RUN bundle install --deployment --without development test
-
+# mysql2 0.5.x 在 Ruby 3.4 (C23) 下需要 -std=gnu17 才能編譯
+# .bundle/config 已 commit 該設定，bundle install 會自動採用
+COPY Gemfile Gemfile.lock .ruby-version .bundle/ .bundle/
 COPY . .
 
+RUN bundle install --deployment --without development test
 RUN rails assets:precompile
 
 EXPOSE 3000
@@ -150,7 +150,7 @@ CMD ["bundle", "exec", "unicorn", "-c", "unicorn.conf.rb"]
 
 1. **在伺服器上準備環境**
    ```bash
-   # 安裝Ruby 3.2.8、MySQL等依賴
+   # 安裝 Ruby 3.4.4、MySQL 等依賴
    # 複製程式碼到伺服器
    ```
 
@@ -210,12 +210,16 @@ CMD ["bundle", "exec", "unicorn", "-c", "unicorn.conf.rb"]
 
 ### 安全設定
 
-應用程式已啟用以下安全機制：
-- CSRF保護
-- XSS輸入清理
-- Content Security Policy
-- 安全標頭設定
-- 輸入驗證
+應用程式已啟用以下安全機制（詳見 2026-05 強化）：
+
+- **CSRF 保護**（`protect_from_forgery`）
+- **XSS 輸入清理**（Message 儲存前 `sanitize`） + **ERB 自動跳脫輸出**
+- **Content Security Policy**：`script_src :self`、每請求隨機 nonce
+- **防灌水**：`rack-attack` 對 `POST /say` 節流（5/分、30/日、全站 300/5 分），加上表單 honeypot 隱藏欄位
+- **傳輸層**：production 啟用 `assume_ssl + force_ssl`，cookie 帶 `Secure`、回應送 HSTS（搭配 Cloudflare Flexible SSL；建議升級為 Full(strict)）
+- **其他標頭**：`X-Frame-Options: DENY`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、最小化 `Permissions-Policy`
+- **密鑰管理**：`config/master.key`、`config/database.yml` 已 gitignore 且確認從未進入 git 歷史；DB 密碼從 `MEMORIAL_DB_PASSWORD` 環境變數讀取
+- **靜態匯出**：`memorial:static` 在內嵌 `<script>` 時 unicode-escape 留言中的 `<>&`，避免 `</script>` 破出
 
 ## 管理工具
 

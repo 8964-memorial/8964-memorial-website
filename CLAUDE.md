@@ -4,63 +4,89 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Rails 7.2 memorial website for the June 4th (6/4) incident, running on Ruby 3.2.8. The application is a simple message board where users can leave memorial messages that are displayed randomly on the main page.
+A Rails 7.2 memorial website for the June 4th (6/4) incident, running on **Ruby 3.4.4**. A simple message board where users can leave memorial messages that are displayed in random order on the main page.
+
+The comment feature (`POST /say`) is politically sensitive and gated by `commenting_enabled?` — kept off by default and only opened around memorial events.
 
 ## Core Architecture
 
-- **Single Controller Pattern**: Uses `PagesController` with three actions:
-  - `index`: Displays all messages in random order
-  - `say`: Shows form for creating new messages  
-  - `create`: Processes message creation and redirects to home
-- **Simple Data Model**: Single `Message` model with `name` and `content` fields, content limited to 20 characters
-- **Frontend**: Traditional Rails views with ERB templates, uses Stimulus/Turbo for JavaScript
-- **Database**: MySQL with single `messages` table
-- **Production**: Configured with Unicorn server
+- **Single controller**: `PagesController` with three actions:
+  - `index` — displays all messages in random order
+  - `say` — shows the form for creating a new message
+  - `create` — processes message creation and redirects home
+- **Simple data model**: one `Message` model with `name` (max 50 chars) and `content` (max 20 chars); `before_save` runs Rails' `sanitize` for XSS belt-and-suspenders.
+- **Frontend**: ERB templates + Stimulus/Turbo (Hotwire) via importmap.
+- **Database**: MySQL, single `messages` table.
+- **Production**: Unicorn (4 workers) behind Cloudflare.
+
+## Deployment context
+
+The app runs behind **Cloudflare Flexible SSL** (browser↔Cloudflare is HTTPS, but Cloudflare→origin is plain HTTP). This drives several config choices:
+
+- `config.assume_ssl = true` together with `config.force_ssl = true` in production. `assume_ssl` lets Rails treat the request as already-encrypted (true for the browser↔Cloudflare hop), so `force_ssl` won't redirect-loop on the HTTP traffic Cloudflare forwards, while cookies still get the `Secure` flag and HSTS is emitted.
+- Long-term recommendation: upgrade Cloudflare to **Full (strict)** to encrypt the origin hop too. Not yet done.
+- Production DB credentials come from `MEMORIAL_DB_PASSWORD` (and optionally `MEMORIAL_DB_USERNAME`). `config/database.yml` is gitignored; the ENV-based template is in `config/database.yml.default`.
+- Comment feature switch: `MEMORIAL_COMMENTING_ENABLED=true` (ENV) or `config/memorial.yml` `features.commenting_enabled`.
+
+## Security mechanisms in place
+
+Already wired up; don't reinvent these when adding features:
+
+- **`rack-attack`** (`config/initializers/rack_attack.rb`) throttles `POST /say` (5/min, 30/day per IP) plus a global safety net (300/5min). Uses a `FileStore` cache (single-host only). **Disabled in test env** — re-enable carefully if you want to test throttling.
+- **Honeypot**: a hidden `email_confirmation` field in the say form; if a bot fills it, the controller silently redirects without saving.
+- **CSP**: `script_src :self` (no `:https`); per-request random nonce via `SecureRandom.base64(16)`.
+- **Other headers**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 0` (deprecated mechanism intentionally off), strict referrer policy, restrictive `Permissions-Policy`.
+- **Static export escaping**: `lib/tasks/memorial.rake` unicode-escapes `<>&` when embedding messages JSON into an inline `<script>` so `</script>` in content can't break out.
+- `master.key` and `config/database.yml` are gitignored and have never been committed.
+
+Rails is deliberately kept on the 7.2.x series (currently 7.2.3.1, still receiving security patches). Upgrading to Rails 8 is a future, separate task.
 
 ## Development Commands
 
-**Start server:**
+Start server: `bin/rails server`
+Console: `bin/rails console`
+DB ops: `bin/rails db:migrate`, `bin/rails db:seed`
+Assets: `bin/rails assets:precompile`
+Static scanners: `bundle exec brakeman` and `bundle exec bundler-audit check --update`
+
+### Testing
+
 ```bash
-rails server
+bin/rails test                            # full suite (33 + 2 = 35 runs)
+bin/rails test test/models                # one directory
+bin/rails test test/lib/tasks/            # the rake-task tests
 ```
 
-**Run tests:**
-```bash
-rails test
+**Test suite caveats** (non-obvious):
+- MySQL must be running locally; the test DB uses `root` / `***REMOVED***` (matches the gitignored `config/database.yml`).
+- The two rake-task test classes (`MemorialRakeTest`, `MemorialClearTest`) are intentionally `use_transactional_tests = false`, because the tasks run DDL (`ALTER TABLE … AUTO_INCREMENT`) and `clear_all_connections!`, which would break transactional isolation.
+- Each rake-task `setup` guards `Rails.application.load_tasks` with `unless Rake::Task.task_defined?(...)`. Without that guard, `load_tasks` would *append* another action block each call, so the task body would run N× on the Nth invoke and the clear task's `count==0 → exit` would kill the run.
+- The honeypot test posts an `email_confirmation` param and expects no Message created.
+
+### Ruby 3.4 build note
+
+Ruby 3.4 compiles C extensions with `-std=gnu23` (C23), which rejects mysql2's K&R-style gperf header. The required flag is committed at `.bundle/config`:
+
+```yaml
+BUNDLE_BUILD__MYSQL2: "--with-cflags=-std=gnu17"
 ```
 
-**Run specific test:**
-```bash
-rails test test/models/message_test.rb
-```
-
-**Database operations:**
-```bash
-rails db:migrate
-rails db:seed
-```
-
-**Asset compilation:**
-```bash
-rails assets:precompile
-```
-
-**Console:**
-```bash
-rails console
-```
+`csv` is no longer a default gem in Ruby 3.4 either; it's declared in the Gemfile.
 
 ## Key Files
 
-- `app/controllers/pages_controller.rb` - Main application logic
-- `app/models/message.rb` - Message validation (20 char limit)
-- `app/views/pages/index.html.erb` - Memorial messages display
-- `config/routes.rb` - Simple routing: root, /say (GET/POST)
-- `db/migrate/20230531164447_create_messages.rb` - Database schema
+- `app/controllers/pages_controller.rb` — controller + honeypot check
+- `app/models/message.rb` — validations + sanitize
+- `app/views/pages/index.html.erb` — memorial display
+- `app/views/pages/say.html.erb` — submit form (contains the honeypot div)
+- `app/helpers/application_helper.rb` — `commenting_enabled?` (also duplicated as a private method in `PagesController`; pre-existing DRY violation, untouched)
+- `config/routes.rb` — `root`, `/say` (GET/POST), `/health`
+- `config/initializers/rack_attack.rb` — throttling config
+- `config/initializers/content_security_policy.rb` — CSP + nonce
+- `config/environments/production.rb` — `assume_ssl` / `force_ssl` for Cloudflare
+- `lib/tasks/memorial.rake` — export / static / clear tasks
+- `db/migrate/20230531164447_create_messages.rb` — schema
 
-## Testing Framework
+## Testing framework
 
-Uses standard Rails testing with:
-- Minitest framework
-- System tests with Capybara/Selenium
-- Test files in `test/` directory following Rails conventions
+Standard Rails Minitest + Capybara/Selenium for system tests. System tests live in `test/system/` and run separately via `bin/rails test:system`.
