@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "3.2.8"
+ruby "3.4.4"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.2.3", ">= 7.2.3.1"
@@ -47,6 +47,9 @@ gem "sassc-rails"
 
 # Zip file creation for static export
 gem "rubyzip"
+
+# CSV export support — csv is no longer a default gem as of Ruby 3.4
+gem "csv"
 
 # Rate limiting / throttling to mitigate comment flooding [https://github.com/rack/rack-attack]
 gem "rack-attack"
