@@ -104,6 +104,24 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should silently drop submissions whose content matches an attack pattern" do
+    with_commenting_enabled do
+      assert_no_difference('Message.count') do
+        post say_path, params: { message: { name: "x", content: "<script>x</script>" } }
+      end
+      assert_redirected_to root_path
+    end
+  end
+
+  test "should silently drop submissions whose name matches an attack pattern" do
+    with_commenting_enabled do
+      assert_no_difference('Message.count') do
+        post say_path, params: { message: { name: "' OR 1=1", content: "hi" } }
+      end
+      assert_redirected_to root_path
+    end
+  end
+
   private
 
   def with_commenting_enabled

@@ -34,6 +34,9 @@ Already wired up; don't reinvent these when adding features:
 
 - **`rack-attack`** (`config/initializers/rack_attack.rb`) throttles `POST /say` (5/min, 30/day per IP) plus a global safety net (300/5min). Uses a `FileStore` cache (single-host only). **Disabled in test env** — re-enable carefully if you want to test throttling.
 - **Honeypot**: a hidden `email_confirmation` field in the say form; if a bot fills it, the controller silently redirects without saving.
+- **Attack-pattern detection** (`app/lib/security_filter.rb`): `SecurityFilter.attack_signature` matches `name`/`content` against XSS/SQLi/path-traversal patterns. On a hit, `PagesController#create` **silently drops** the submission (redirects to root exactly like success — no error shown, so the attacker can't probe the filter) and logs `[security][attack-attempt]` with the real client IP + UA.
+- **Repeat-offender IP ban**: both honeypot hits and attack-pattern hits feed `Rack::Attack::Fail2Ban` (`attack:<ip>`, `maxretry: 3`, `bantime: 24h`). After 3 strikes in an hour the IP is added to a rack-attack `blocklist` and gets 403 on all paths for 24h.
+- **Real client IP behind Cloudflare**: both the controller (`client_ip`) and rack-attack (`Rack::Attack.client_ip`) read `CF-Connecting-IP` first, falling back to `req.ip` — otherwise every visitor would look like a Cloudflare edge address and throttles/bans would be wrong.
 - **CSP**: `script_src :self` (no `:https`); per-request random nonce via `SecureRandom.base64(16)`.
 - **Other headers**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 0` (deprecated mechanism intentionally off), strict referrer policy, restrictive `Permissions-Policy`.
 - **Static export escaping**: `lib/tasks/memorial.rake` unicode-escapes `<>&` when embedding messages JSON into an inline `<script>` so `</script>` in content can't break out.
@@ -52,7 +55,7 @@ Static scanners: `bundle exec brakeman` and `bundle exec bundler-audit check --u
 ### Testing
 
 ```bash
-bin/rails test                            # full suite (33 + 2 = 35 runs)
+bin/rails test                            # full suite (49 runs)
 bin/rails test test/models                # one directory
 bin/rails test test/lib/tasks/            # the rake-task tests
 ```
@@ -62,6 +65,7 @@ bin/rails test test/lib/tasks/            # the rake-task tests
 - The two rake-task test classes (`MemorialRakeTest`, `MemorialClearTest`) are intentionally `use_transactional_tests = false`, because the tasks run DDL (`ALTER TABLE … AUTO_INCREMENT`) and `clear_all_connections!`, which would break transactional isolation.
 - Each rake-task `setup` guards `Rails.application.load_tasks` with `unless Rake::Task.task_defined?(...)`. Without that guard, `load_tasks` would *append* another action block each call, so the task body would run N× on the Nth invoke and the clear task's `count==0 → exit` would kill the run.
 - The honeypot test posts an `email_confirmation` param and expects no Message created.
+- `test/integration/comment_abuse_blocking_test.rb` is the one place rack-attack is turned on; it flips `Rack::Attack.enabled` to true with a process-unique `FileStore` and restores both (plus the cache store and memorial config) in `teardown`, so it can't bleed counts into other tests or runs.
 
 ### Ruby 3.4 build note
 
@@ -75,7 +79,8 @@ BUNDLE_BUILD__MYSQL2: "--with-cflags=-std=gnu17"
 
 ## Key Files
 
-- `app/controllers/pages_controller.rb` — controller + honeypot check
+- `app/controllers/pages_controller.rb` — controller + honeypot/attack-pattern checks + Fail2Ban flagging
+- `app/lib/security_filter.rb` — `SecurityFilter.attack_signature` injection-pattern matcher
 - `app/models/message.rb` — validations + sanitize
 - `app/views/pages/index.html.erb` — memorial display
 - `app/views/pages/say.html.erb` — submit form (contains the honeypot div)
