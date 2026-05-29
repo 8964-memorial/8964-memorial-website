@@ -15,7 +15,7 @@
 - **Framework**: Ruby on Rails 7.2.3.1（7.2 系列維持中，未升 8）
 - **Ruby Version**: 3.4.4
 - **Database**: MySQL
-- **Web Server**: Unicorn (生產環境)
+- **Web Server**: Puma (cluster 模式，生產環境)
 - **CSS**: SCSS with Sass
 - **JavaScript**: Stimulus + Turbo (Hotwire)
 - **防灌水**: rack-attack 節流 + honeypot 隱藏欄位
@@ -143,7 +143,7 @@ RUN rails assets:precompile
 
 EXPOSE 3000
 
-CMD ["bundle", "exec", "unicorn", "-c", "unicorn.conf.rb"]
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
 ```
 
 ### 傳統部署
@@ -173,8 +173,8 @@ CMD ["bundle", "exec", "unicorn", "-c", "unicorn.conf.rb"]
 
 3. **啟動服務**
    ```bash
-   # 使用Unicorn
-   bundle exec unicorn -c unicorn.conf.rb -E production -D
+   # 使用 Puma（cluster 模式由 config/puma.rb 控制：production 綁 unix socket、4 workers）
+   RAILS_ENV=production bundle exec puma -C config/puma.rb
    
    # 或使用systemd、supervisor等程序管理工具
    ```

@@ -54,11 +54,7 @@ gem "csv"
 # Rate limiting / throttling to mitigate comment flooding [https://github.com/rack/rack-attack]
 gem "rack-attack"
 
-group :production do
-  gem 'unicorn'
-end
-
-# Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
+# Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 # gem "image_processing", "~> 1.2"
 
 group :development, :test do

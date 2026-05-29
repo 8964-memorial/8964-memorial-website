@@ -1,43 +1,52 @@
-# Puma can serve each request in a thread from an internal thread pool.
-# The `threads` method setting takes two numbers: a minimum and maximum.
-# Any libraries that use thread pools should be configured to match
-# the maximum value specified for Puma. Default is set to 5 threads for minimum
-# and maximum; this matches the default thread size of Active Record.
+# Puma configuration.
 #
+# Puma replaced unicorn as the production server: unicorn 6.1.0 (the last
+# release) crashes on Rack 3 + Ruby 3.4 because it does `value =~ /\n/` on each
+# response header value, but Rack 3 hands Set-Cookie back as an Array and Ruby
+# 3.4 removed Object#=~ — so every cookie-setting response 500s. Puma 6 natively
+# supports Rack 3.
+
+# Puma serves each request from a thread pool. The thread count should match the
+# Active Record pool size (config/database.yml) so threads aren't starved.
 max_threads_count = ENV.fetch("RAILS_MAX_THREADS") { 5 }
 min_threads_count = ENV.fetch("RAILS_MIN_THREADS") { max_threads_count }
 threads min_threads_count, max_threads_count
 
-# Specifies the `worker_timeout` threshold that Puma will use to wait before
-# terminating a worker in development environments.
-#
-worker_timeout 3600 if ENV.fetch("RAILS_ENV", "development") == "development"
-
-# Specifies the `port` that Puma will listen on to receive requests; default is 3000.
-#
-port ENV.fetch("PORT") { 3000 }
-
-# Specifies the `environment` that Puma will run in.
-#
 environment ENV.fetch("RAILS_ENV") { "development" }
 
-# Specifies the `pidfile` that Puma will use.
-pidfile ENV.fetch("PIDFILE") { "tmp/pids/server.pid" }
+if ENV.fetch("RAILS_ENV", "development") == "production"
+  # Production runs behind nginx over a unix socket (no public TCP listener).
+  # Bind the same socket path nginx's upstream already points at so the nginx
+  # config doesn't need to change. Override with MEMORIAL_PUMA_BIND if the
+  # deploy path differs.
+  bind ENV.fetch("MEMORIAL_PUMA_BIND") {
+    "unix:///srv/8964-memorial-website/shared/tmp/sockets/unicorn.sock"
+  }
 
-# Specifies the number of `workers` to boot in clustered mode.
-# Workers are forked web server processes. If using threads and workers together
-# the concurrency of the application would be max `threads` * `workers`.
-# Workers do not work on JRuby or Windows (both of which do not support
-# processes).
-#
-# workers ENV.fetch("WEB_CONCURRENCY") { 2 }
+  # Cluster mode: fork worker processes (matches the old unicorn 4 workers).
+  # preload_app! gives copy-on-write memory savings; Rails reconnects
+  # ActiveRecord automatically after fork (ForkTracker), so no on_worker_boot
+  # reconnect is needed on Rails 7.2.
+  #
+  # Restart note: preload_app! is incompatible with phased restart (SIGUSR1).
+  # Use a hot restart (SIGUSR2) or `systemctl restart` to pick up new code.
+  workers ENV.fetch("WEB_CONCURRENCY") { 4 }
+  preload_app!
 
-# Use the `preload_app!` method when specifying a `workers` number.
-# This directive tells Puma to first boot the application and load code
-# before forking the application. This takes advantage of Copy On Write
-# process behavior so workers use less memory.
-#
-# preload_app!
+  # Kill and replace a worker that hangs this long (matches old unicorn timeout).
+  worker_timeout ENV.fetch("WEB_WORKER_TIMEOUT") { 30 }.to_i
 
-# Allow puma to be restarted by `bin/rails restart` command.
-plugin :tmp_restart
+  pidfile ENV.fetch("PIDFILE") {
+    "/srv/8964-memorial-website/shared/tmp/pids/puma.pid"
+  }
+else
+  # Development / test: listen on TCP for `bin/rails server`.
+  port ENV.fetch("PORT") { 3000 }
+  pidfile ENV.fetch("PIDFILE") { "tmp/pids/server.pid" }
+
+  # Don't terminate a worker you're debugging.
+  worker_timeout 3600
+
+  # Allow puma to be restarted by `bin/rails restart`.
+  plugin :tmp_restart
+end

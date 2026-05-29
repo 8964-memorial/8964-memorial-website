@@ -17,7 +17,7 @@ The comment feature (`POST /say`) is politically sensitive and gated by `comment
 - **Simple data model**: one `Message` model with `name` (max 50 chars) and `content` (max 20 chars); `before_save` runs Rails' `sanitize` for XSS belt-and-suspenders.
 - **Frontend**: ERB templates + Stimulus/Turbo (Hotwire) via importmap.
 - **Database**: MySQL, single `messages` table.
-- **Production**: Unicorn (4 workers) behind Cloudflare.
+- **Production**: Puma in cluster mode (4 workers, bound to a unix socket) behind nginx → Cloudflare. (Switched from unicorn, which crashes on Rack 3 + Ruby 3.4 — its last release does `header_value =~ /\n/`, but Rack 3 sends `Set-Cookie` as an Array and Ruby 3.4 removed `Object#=~`, so every cookie-setting response 500'd.)
 
 ## Deployment context
 
@@ -55,7 +55,7 @@ Static scanners: `bundle exec brakeman` and `bundle exec bundler-audit check --u
 ### Testing
 
 ```bash
-bin/rails test                            # full suite (51 runs)
+bin/rails test                            # full suite (55 runs)
 bin/rails test test/models                # one directory
 bin/rails test test/lib/tasks/            # the rake-task tests
 ```
