@@ -257,7 +257,7 @@ rails memorial:static
 
 輸出：
 - 靜態檔案目錄：`static_output/`
-- 壓縮檔案：專案根目錄的 `memorial_static_[時間戳].zip`
+- 壓縮檔案：`static_zip/` 目錄下的 `memorial_static_[時間戳].zip`
 
 **注意**：需要先安裝 `rubyzip` gem 以支援 ZIP 壓縮功能。
 
