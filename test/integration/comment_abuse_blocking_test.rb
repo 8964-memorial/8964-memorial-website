@@ -49,4 +49,19 @@ class CommentAbuseBlockingTest < ActionDispatch::IntegrationTest
     get root_path, headers: { "CF-Connecting-IP" => "198.51.100.9" }
     assert_response :success
   end
+
+  test "bans an IP after repeated honeypot submissions" do
+    headers = { "CF-Connecting-IP" => "203.0.113.88" }
+    honeypot_params = { message: { name: "b", content: "c" }, email_confirmation: "x@y.z" }
+
+    3.times do
+      assert_no_difference("Message.count") do
+        post say_path, params: honeypot_params, headers: headers
+      end
+      assert_response :redirect
+    end
+
+    get root_path, headers: headers
+    assert_response :forbidden
+  end
 end

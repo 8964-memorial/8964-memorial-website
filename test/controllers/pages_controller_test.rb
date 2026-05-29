@@ -122,7 +122,31 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should log attack attempts with the client IP, field and pattern" do
+    with_commenting_enabled do
+      log = capture_rails_log do
+        post say_path,
+          params: { message: { name: "x", content: "<script>x</script>" } },
+          headers: { "CF-Connecting-IP" => "203.0.113.200" }
+      end
+      assert_includes log, "[security][attack-attempt]"
+      assert_includes log, "ip=203.0.113.200"
+      assert_includes log, "field=content"
+      assert_includes log, "reason=script_tag"
+    end
+  end
+
   private
+
+  def capture_rails_log
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io)
+    yield
+    io.string
+  ensure
+    Rails.logger = original
+  end
 
   def with_commenting_enabled
     original_config = Rails.application.config.memorial

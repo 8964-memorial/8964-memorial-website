@@ -55,13 +55,14 @@ Static scanners: `bundle exec brakeman` and `bundle exec bundler-audit check --u
 ### Testing
 
 ```bash
-bin/rails test                            # full suite (49 runs)
+bin/rails test                            # full suite (51 runs)
 bin/rails test test/models                # one directory
 bin/rails test test/lib/tasks/            # the rake-task tests
 ```
 
 **Test suite caveats** (non-obvious):
 - MySQL must be running locally; the test DB uses `root` / `***REMOVED***` (matches the gitignored `config/database.yml`).
+- `test_helper.rb` sets `parallelize(workers: 1)` **on purpose** — the rake-task tests share on-disk dirs (`static_output/`, `backup/`) and global Rake/DB-connection state, so forked workers race and fail intermittently. Don't re-enable parallelization without first making those tests use per-process temp dirs.
 - The two rake-task test classes (`MemorialRakeTest`, `MemorialClearTest`) are intentionally `use_transactional_tests = false`, because the tasks run DDL (`ALTER TABLE … AUTO_INCREMENT`) and `clear_all_connections!`, which would break transactional isolation.
 - Each rake-task `setup` guards `Rails.application.load_tasks` with `unless Rake::Task.task_defined?(...)`. Without that guard, `load_tasks` would *append* another action block each call, so the task body would run N× on the Nth invoke and the clear task's `count==0 → exit` would kill the run.
 - The honeypot test posts an `email_confirmation` param and expects no Message created.

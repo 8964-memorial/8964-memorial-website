@@ -50,8 +50,12 @@ class PagesController < ApplicationController
   end
 
   def detect_attack_signature
+    message = params[:message]
+    # Only scan well-formed nested params; a malformed shape (string/array) is
+    # left to message_params below rather than crashing the scan on #dig.
+    return nil unless message.is_a?(ActionController::Parameters)
     [:name, :content].each do |field|
-      value = params.dig(:message, field).to_s
+      value = message[field].to_s
       next if value.empty?
       pattern = SecurityFilter.attack_signature(value)
       return { field: field, pattern: pattern, value: value } if pattern
