@@ -335,3 +335,22 @@ footer p {
     bottom: 305px;
   }
 }
+
+/* PC：依視窗寬度放寬蠟燭區，每排蠟燭隨之增加 (預設 560px ≈ 2-3 個，最多到 ~5 個) */
+@media screen and (min-width: 768px) {
+  .light-group {
+    max-width: 720px; /* ≈ 3 個/排 */
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .light-group {
+    max-width: 960px; /* ≈ 4 個/排 */
+  }
+}
+
+@media screen and (min-width: 1320px) {
+  .light-group {
+    max-width: 1120px; /* ≈ 5 個/排 */
+  }
+}
