@@ -28,6 +28,19 @@ header {
   background-size: contain;
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
+}
+
+/* header 照片下緣淡出成黑色 (透明→黑、滿版蓋住整條下緣)，柔順銜接下方蠟燭區 */
+header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 240px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, #000 100%);
+  pointer-events: none;
 }
 
 header h1 {
@@ -83,7 +96,25 @@ main {
   max-width: 560px;
   margin: auto;
   padding-top: 60px;
+  position: relative;
 }
+
+/* 訊息區中央鋪黑底蓋掉中央的底圖蠟燭；左右用遮罩漸層淡出，讓兩側的底圖蠟燭露出來。
+   位於 candle-bg 之上、燭光 gif 之下 */
+.light-group::before {
+  content: "";
+  position: absolute;
+  top: -30px;
+  bottom: 0;
+  left: -50px;
+  right: -50px;
+  background: #000;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%);
+}
+
 .light-box {
   width: 166px;
   height: 202px;
@@ -97,6 +128,8 @@ main {
   text-align: left;
   padding-top: 124px;
   margin-bottom: 30px;
+  position: relative;
+  z-index: 1;
 }
 
 .light-box:nth-child(5n + 1) {
@@ -153,16 +186,31 @@ footer {
   position: relative;
 }
 
+/* 感謝文字一帶的黑底：向上延伸一點進入蠟燭區、上下都用漸層淡出（上接蠟燭區、下接底部照片），
+   中間維持實黑墊在感謝文字後、並蓋掉底部照片的硬上緣 */
+footer::before {
+  content: "";
+  position: absolute;
+  top: -150px;
+  left: 0;
+  right: 0;
+  height: 390px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, #000 40%, #000 56%, rgba(0, 0, 0, 0) 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
 footer p {
   color: #fff;
   text-align: center;
   position: absolute;
   width: 100%;
   left: 0;
-  top: 0px;
+  top: 10px; /* 略為下移，坐在黑底較實的位置 */
   box-sizing: border-box;
   padding: 0 20px;
   font-size: 13px;
+  z-index: 1;
 }
 .btn {
   display: block;
@@ -336,21 +384,24 @@ footer p {
   }
 }
 
-/* PC：依視窗寬度放寬蠟燭區，每排蠟燭隨之增加 (預設 560px ≈ 2-3 個，最多到 ~5 個) */
-@media screen and (min-width: 768px) {
+/* PC：用 9 顆一循環的 margin 兜出 5,4,5,4… 交錯磚牆（同原版 3,2 的做法放大）。
+   第 1~5 顆排成 5 個一排，第 6~9 顆加 margin 變胖→只剩 4 個並置中內縮，與上下排錯開。
+   窄螢幕 (<960px) 維持原本 560px 的 3,2 交錯。 */
+@media screen and (min-width: 960px) {
   .light-group {
-    max-width: 720px; /* ≈ 3 個/排 */
+    max-width: 900px;
   }
-}
-
-@media screen and (min-width: 1024px) {
-  .light-group {
-    max-width: 960px; /* ≈ 4 個/排 */
+  .light-box:nth-child(5n + 2),
+  .light-box:nth-child(5n + 4),
+  .light-box:nth-child(5n + 5) {
+    margin-left: 0;
+    margin-right: 0;
   }
-}
-
-@media screen and (min-width: 1320px) {
-  .light-group {
-    max-width: 1120px; /* ≈ 5 個/排 */
+  .light-box:nth-child(9n + 6),
+  .light-box:nth-child(9n + 7),
+  .light-box:nth-child(9n + 8),
+  .light-box:nth-child(9n) {
+    margin-left: 10px;
+    margin-right: 10px;
   }
 }
