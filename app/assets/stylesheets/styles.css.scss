@@ -175,7 +175,8 @@ footer p {
   text-indent: -500px;
   position: fixed;
   right: 10px;
-  bottom: 126px;
+  /* 上移到加高後的海報上方 (海報 bottom 5px + 約 293px 高 + 約 6px 間距) */
+  bottom: 305px;
   border: none;
   border-radius: 10px;
   z-index: 9999;
@@ -190,10 +191,9 @@ footer p {
   z-index: 9998;
 }
 .banner img {
+  /* 直式海報：以按鈕寬度 (207px) 完整顯示，高度自動 (約 293px) */
   width: 100%;
   height: auto;
-  max-height: 115px;
-  object-fit: contain;
 }
 
 .say-box {
@@ -332,6 +332,6 @@ footer p {
   .btn {
     width: 109px;
     height: 37px;
-    bottom: 126px;
+    bottom: 305px;
   }
 }
